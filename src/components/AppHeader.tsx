@@ -23,6 +23,8 @@ export function AppHeader() {
               <Link to="/dashboard" className="text-sm font-medium px-3 py-2 rounded-md hover:bg-accent">Dashboard</Link>
               <Link to="/assets" className="text-sm font-medium px-3 py-2 rounded-md hover:bg-accent">Assets</Link>
               <Link to="/bookings" className="text-sm font-medium px-3 py-2 rounded-md hover:bg-accent">My Bookings</Link>
+              <Link to="/maintenance" className="text-sm font-medium px-3 py-2 rounded-md hover:bg-accent">Maintenance</Link>
+              <Link to="/analytics" className="text-sm font-medium px-3 py-2 rounded-md hover:bg-accent">Analytics</Link>
               {role === "admin" && (
                 <Link to="/admin" className="text-sm font-medium px-3 py-2 rounded-md hover:bg-accent">Admin</Link>
               )}
