@@ -9,14 +9,21 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as MaintenanceRouteImport } from './routes/maintenance'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as BookingsRouteImport } from './routes/bookings'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AssetsRouteImport } from './routes/assets'
+import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as BookAssetIdRouteImport } from './routes/book.$assetId'
 
+const MaintenanceRoute = MaintenanceRouteImport.update({
+  id: '/maintenance',
+  path: '/maintenance',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -35,6 +42,11 @@ const AuthRoute = AuthRouteImport.update({
 const AssetsRoute = AssetsRouteImport.update({
   id: '/assets',
   path: '/assets',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AnalyticsRoute = AnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -56,29 +68,35 @@ const BookAssetIdRoute = BookAssetIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/analytics': typeof AnalyticsRoute
   '/assets': typeof AssetsRoute
   '/auth': typeof AuthRoute
   '/bookings': typeof BookingsRoute
   '/dashboard': typeof DashboardRoute
+  '/maintenance': typeof MaintenanceRoute
   '/book/$assetId': typeof BookAssetIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/analytics': typeof AnalyticsRoute
   '/assets': typeof AssetsRoute
   '/auth': typeof AuthRoute
   '/bookings': typeof BookingsRoute
   '/dashboard': typeof DashboardRoute
+  '/maintenance': typeof MaintenanceRoute
   '/book/$assetId': typeof BookAssetIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/analytics': typeof AnalyticsRoute
   '/assets': typeof AssetsRoute
   '/auth': typeof AuthRoute
   '/bookings': typeof BookingsRoute
   '/dashboard': typeof DashboardRoute
+  '/maintenance': typeof MaintenanceRoute
   '/book/$assetId': typeof BookAssetIdRoute
 }
 export interface FileRouteTypes {
@@ -86,43 +104,58 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/analytics'
     | '/assets'
     | '/auth'
     | '/bookings'
     | '/dashboard'
+    | '/maintenance'
     | '/book/$assetId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/admin'
+    | '/analytics'
     | '/assets'
     | '/auth'
     | '/bookings'
     | '/dashboard'
+    | '/maintenance'
     | '/book/$assetId'
   id:
     | '__root__'
     | '/'
     | '/admin'
+    | '/analytics'
     | '/assets'
     | '/auth'
     | '/bookings'
     | '/dashboard'
+    | '/maintenance'
     | '/book/$assetId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
+  AnalyticsRoute: typeof AnalyticsRoute
   AssetsRoute: typeof AssetsRoute
   AuthRoute: typeof AuthRoute
   BookingsRoute: typeof BookingsRoute
   DashboardRoute: typeof DashboardRoute
+  MaintenanceRoute: typeof MaintenanceRoute
   BookAssetIdRoute: typeof BookAssetIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/maintenance': {
+      id: '/maintenance'
+      path: '/maintenance'
+      fullPath: '/maintenance'
+      preLoaderRoute: typeof MaintenanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard': {
       id: '/dashboard'
       path: '/dashboard'
@@ -149,6 +182,13 @@ declare module '@tanstack/react-router' {
       path: '/assets'
       fullPath: '/assets'
       preLoaderRoute: typeof AssetsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/analytics': {
+      id: '/analytics'
+      path: '/analytics'
+      fullPath: '/analytics'
+      preLoaderRoute: typeof AnalyticsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -178,21 +218,14 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
+  AnalyticsRoute: AnalyticsRoute,
   AssetsRoute: AssetsRoute,
   AuthRoute: AuthRoute,
   BookingsRoute: BookingsRoute,
   DashboardRoute: DashboardRoute,
+  MaintenanceRoute: MaintenanceRoute,
   BookAssetIdRoute: BookAssetIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}
