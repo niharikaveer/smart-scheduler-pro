@@ -34,7 +34,7 @@ function AdminPage() {
   };
   useEffect(() => { load(); }, []);
 
-  const setStatus = async (id: string, status: string) => {
+  const setStatus = async (id: string, status: "approved" | "rejected" | "cancelled" | "completed" | "pending") => {
     const { error } = await supabase.from("bookings").update({ status }).eq("id", id);
     if (error) toast.error(error.message); else { toast.success(`Booking ${status}`); load(); }
   };
