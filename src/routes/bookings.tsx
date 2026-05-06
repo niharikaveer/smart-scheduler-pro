@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "./dashboard";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { cancelDemoBooking, getDemoBookingsForUser } from "@/lib/demoData";
 
 export const Route = createFileRoute("/bookings")({
   component: () => <RequireAuth><MyBookings /></RequireAuth>,
@@ -17,16 +18,29 @@ export const Route = createFileRoute("/bookings")({
 function MyBookings() {
   const { user } = useAuth();
   const [bookings, setBookings] = useState<any[]>([]);
+  const [demoMode, setDemoMode] = useState(false);
 
   const load = async () => {
     const { data } = await supabase
       .from("bookings").select("*, assets(name, image_url)")
       .eq("user_id", user!.id).order("start_time", { ascending: false });
-    setBookings(data ?? []);
+    if (!data || data.length === 0) {
+      setBookings(getDemoBookingsForUser(user!.id));
+      setDemoMode(true);
+      return;
+    }
+    setBookings(data);
+    setDemoMode(false);
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [user]);
 
   const cancel = async (id: string) => {
+    if (id.startsWith("demo-booking-")) {
+      cancelDemoBooking(id, user!.id);
+      toast.success("Booking cancelled");
+      load();
+      return;
+    }
     const { error } = await supabase.from("bookings").update({ status: "cancelled" }).eq("id", id);
     if (error) toast.error(error.message); else { toast.success("Booking cancelled"); load(); }
   };
@@ -37,6 +51,7 @@ function MyBookings() {
       <main className="max-w-5xl mx-auto px-6 py-10">
         <h1 className="text-3xl font-bold tracking-tight">My Bookings</h1>
         <p className="text-muted-foreground mt-1">All your reservations in one place.</p>
+        {demoMode && <p className="text-xs text-muted-foreground mt-2">Showing demo bookings because no bookings were found in your database.</p>}
 
         <div className="mt-8 space-y-3">
           {bookings.length === 0 && <Card className="p-10 text-center text-muted-foreground">No bookings yet.</Card>}

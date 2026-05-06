@@ -14,6 +14,12 @@ import { suggestNextSlot, fmtSlot } from "@/lib/booking";
 import { addHours, format } from "date-fns";
 import { AlertCircle, CalendarClock, CheckCircle2, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import {
+  createDemoBooking,
+  getDemoAssetById,
+  getDemoUpcomingForAsset,
+  isDemoAssetId,
+} from "@/lib/demoData";
 
 export const Route = createFileRoute("/book/$assetId")({
   component: () => <RequireAuth><BookPage /></RequireAuth>,
@@ -37,13 +43,31 @@ function BookPage() {
   const [suggestion, setSuggestion] = useState<Date | null>(null);
   const [conflict, setConflict] = useState(false);
   const [upcoming, setUpcoming] = useState<any[]>([]);
+  const [demoMode, setDemoMode] = useState(false);
 
   useEffect(() => {
-    supabase.from("assets").select("*").eq("id", assetId).single().then(({ data }) => setAsset(data));
+    supabase
+      .from("assets")
+      .select("*")
+      .eq("id", assetId)
+      .single()
+      .then(({ data }) => {
+        if (!data && isDemoAssetId(assetId)) {
+          setAsset(getDemoAssetById(assetId));
+          setDemoMode(true);
+          return;
+        }
+        setAsset(data);
+        setDemoMode(false);
+      });
     refreshUpcoming();
   }, [assetId]);
 
   const refreshUpcoming = async () => {
+    if (isDemoAssetId(assetId)) {
+      setUpcoming(getDemoUpcomingForAsset(assetId));
+      return;
+    }
     const { data } = await supabase
       .from("bookings")
       .select("start_time,end_time,status")
@@ -57,10 +81,31 @@ function BookPage() {
 
   const checkConflict = async () => {
     const s = new Date(start), e = new Date(end);
-    if (e <= s) return;
+    if (e <= s) {
+      setConflict(true);
+      setSuggestion(null);
+      return;
+    }
+    if (asset?.status === "under_maintenance" || asset?.status === "retired") {
+      setConflict(true);
+      setSuggestion(null);
+      return;
+    }
+    if (isDemoAssetId(assetId)) {
+      const demoUpcoming = getDemoUpcomingForAsset(assetId);
+      const has = demoUpcoming.some(
+        (b) =>
+          ["approved", "pending"].includes(b.status) &&
+          new Date(b.start_time) < e &&
+          new Date(b.end_time) > s,
+      );
+      setConflict(has);
+      setSuggestion(null);
+      return;
+    }
     const { data } = await supabase
       .from("bookings").select("id")
-      .eq("asset_id", assetId).eq("status", "approved")
+      .eq("asset_id", assetId).in("status", ["approved", "pending"])
       .lt("start_time", e.toISOString()).gt("end_time", s.toISOString()).limit(1);
     const has = (data ?? []).length > 0;
     setConflict(has);
@@ -71,7 +116,7 @@ function BookPage() {
     } else setSuggestion(null);
   };
 
-  useEffect(() => { checkConflict(); /* eslint-disable-next-line */ }, [start, end]);
+  useEffect(() => { checkConflict(); /* eslint-disable-next-line */ }, [start, end, asset?.status]);
 
   const applySuggestion = () => {
     if (!suggestion) return;
@@ -83,6 +128,35 @@ function BookPage() {
   const submit = async (asWaitingList = false) => {
     setLoading(true);
     const s = new Date(start), e = new Date(end);
+    if (e <= s) {
+      setLoading(false);
+      toast.error("End time must be after start time.");
+      return;
+    }
+    if (asset?.status === "under_maintenance" || asset?.status === "retired") {
+      setLoading(false);
+      toast.error(`Asset is ${String(asset.status).replace("_", " ")} and cannot be booked.`);
+      return;
+    }
+    if (isDemoAssetId(assetId)) {
+      try {
+        createDemoBooking({
+          assetId,
+          userId: user!.id,
+          start: s.toISOString(),
+          end: e.toISOString(),
+          purpose,
+        });
+      } catch (err: any) {
+        setLoading(false);
+        toast.error(err?.message ?? "Could not create booking.");
+        return;
+      }
+      setLoading(false);
+      toast.success("Booking submitted, awaiting approval.");
+      navigate({ to: "/bookings" });
+      return;
+    }
     if (asWaitingList) {
       const { error } = await supabase.from("waiting_list").insert({
         asset_id: assetId, user_id: user!.id, desired_start: s.toISOString(), desired_end: e.toISOString(),
@@ -98,7 +172,7 @@ function BookPage() {
     }).select().single();
     setLoading(false);
     if (error) toast.error(error.message);
-    else if (data?.status === "rejected") toast.error("Slot conflicts with an approved booking.");
+    else if (data?.status === "rejected") toast.error("This asset is already booked for that time slot.");
     else if (data?.status === "approved") { toast.success("Booking approved!"); navigate({ to: "/bookings" }); }
     else { toast.success("Booking submitted, awaiting approval."); navigate({ to: "/bookings" }); }
   };
@@ -165,6 +239,7 @@ function BookPage() {
 
         <Card className="p-6 border shadow-card h-fit">
           <h3 className="font-semibold mb-3">Upcoming reservations</h3>
+          {demoMode && <p className="text-xs text-muted-foreground mb-3">Demo data mode</p>}
           {upcoming.length === 0 ? (
             <p className="text-sm text-muted-foreground">No upcoming bookings.</p>
           ) : (

@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { format, subDays, startOfDay } from "date-fns";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, CartesianGrid, Legend } from "recharts";
 import { TrendingUp, Package, AlertTriangle, Wrench } from "lucide-react";
+import { getAllDemoBookings, getDemoLifecycleAssets, getDemoMaintenanceLogs } from "@/lib/demoData";
 
 export const Route = createFileRoute("/analytics")({
   component: () => <RequireAuth><AnalyticsPage /></RequireAuth>,
@@ -18,6 +19,7 @@ function AnalyticsPage() {
   const [bookings, setBookings] = useState<any[]>([]);
   const [assets, setAssets] = useState<any[]>([]);
   const [maint, setMaint] = useState<any[]>([]);
+  const [demoMode, setDemoMode] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -27,7 +29,27 @@ function AnalyticsPage() {
         supabase.from("assets").select("*"),
         supabase.from("maintenance_logs").select("performed_at, asset_id").gte("performed_at", since),
       ]);
-      setBookings(b.data ?? []); setAssets(a.data ?? []); setMaint(m.data ?? []);
+      if (!a.data || a.data.length === 0) {
+        const demoAssets = getDemoLifecycleAssets();
+        const demoBookings = getAllDemoBookings()
+          .map((booking) => {
+            const asset = demoAssets.find((d) => d.id === booking.asset_id);
+            return { ...booking, assets: { name: asset?.name ?? "Unknown" } };
+          })
+          .filter((x) => x.created_at >= since);
+        const demoMaint = getDemoMaintenanceLogs()
+          .map((x) => ({ performed_at: x.performed_at, asset_id: x.asset_id }))
+          .filter((x) => x.performed_at >= since);
+        setBookings(demoBookings);
+        setAssets(demoAssets);
+        setMaint(demoMaint);
+        setDemoMode(true);
+        return;
+      }
+      setBookings(b.data ?? []);
+      setAssets(a.data ?? []);
+      setMaint(m.data ?? []);
+      setDemoMode(false);
     })();
   }, []);
 
@@ -74,6 +96,7 @@ function AnalyticsPage() {
       <main className="max-w-7xl mx-auto px-6 py-10">
         <h1 className="text-3xl font-bold tracking-tight">Analytics & Insights</h1>
         <p className="text-muted-foreground mt-1">Usage trends, hot/cold assets, lifecycle and maintenance metrics.</p>
+        {demoMode && <p className="text-xs text-muted-foreground mt-2">Demo mode: analytics are generated from your local bookings and lifecycle data.</p>}
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
           {cards.map((c) => (

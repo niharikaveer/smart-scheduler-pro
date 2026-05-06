@@ -15,6 +15,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Wrench, Activity, History } from "lucide-react";
+import {
+  createDemoMaintenanceLog,
+  getDemoLifecycleAssets,
+  getDemoMaintenanceLogs,
+  isDemoAssetId,
+} from "@/lib/demoData";
 
 export const Route = createFileRoute("/maintenance")({
   component: () => <RequireAuth><MaintenancePage /></RequireAuth>,
@@ -32,18 +38,30 @@ function MaintenancePage() {
   const canEdit = role === "admin" || role === "staff";
   const [assets, setAssets] = useState<any[]>([]);
   const [logs, setLogs] = useState<any[]>([]);
+  const [demoMode, setDemoMode] = useState(false);
 
   const load = async () => {
     const [a, l] = await Promise.all([
       supabase.from("assets").select("*").order("name"),
       supabase.from("maintenance_logs").select("*, assets(name)").order("performed_at", { ascending: false }).limit(50),
     ]);
-    setAssets(a.data ?? []);
+    if (!a.data || a.data.length === 0) {
+      setAssets(getDemoLifecycleAssets());
+      setLogs(getDemoMaintenanceLogs());
+      setDemoMode(true);
+      return;
+    }
+    setAssets(a.data);
     setLogs(l.data ?? []);
+    setDemoMode(false);
   };
   useEffect(() => { load(); }, []);
 
   const setStatus = async (id: string, status: string) => {
+    if (isDemoAssetId(id)) {
+      toast.info("Demo lifecycle derives status from live bookings.");
+      return;
+    }
     const { error } = await supabase.from("assets").update({ status: status as any }).eq("id", id);
     if (error) toast.error(error.message); else { toast.success("Status updated"); load(); }
   };
@@ -59,6 +77,11 @@ function MaintenancePage() {
             <p className="text-muted-foreground">Track asset health, schedule service, log repairs.</p>
           </div>
         </div>
+        {demoMode && (
+          <p className="text-xs text-muted-foreground mt-3">
+            Demo mode: lifecycle and maintenance are synced from your local bookings data.
+          </p>
+        )}
 
         <h2 className="text-lg font-semibold mt-10 mb-3 flex items-center gap-2"><Activity className="h-4 w-4" /> Asset lifecycle</h2>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -94,7 +117,7 @@ function MaintenancePage() {
                         <SelectItem value="retired">Retired</SelectItem>
                       </SelectContent>
                     </Select>
-                    <LogDialog asset={a} onSaved={load} />
+                    <LogDialog asset={a} onSaved={load} demoMode={demoMode} />
                   </div>
                 )}
               </Card>
@@ -124,7 +147,7 @@ function MaintenancePage() {
   );
 }
 
-function LogDialog({ asset, onSaved }: { asset: any; onSaved: () => void }) {
+function LogDialog({ asset, onSaved, demoMode }: { asset: any; onSaved: () => void; demoMode: boolean }) {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [notes, setNotes] = useState("");
@@ -133,6 +156,18 @@ function LogDialog({ asset, onSaved }: { asset: any; onSaved: () => void }) {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (demoMode || isDemoAssetId(asset.id)) {
+      createDemoMaintenanceLog({
+        assetId: asset.id,
+        logType,
+        notes,
+        nextDueAt: nextDue ? new Date(nextDue).toISOString() : null,
+      });
+      toast.success("Maintenance logged");
+      setOpen(false); setNotes(""); setNextDue("");
+      onSaved();
+      return;
+    }
     const { error } = await supabase.from("maintenance_logs").insert({
       asset_id: asset.id, performed_by: user!.id,
       log_type: logType, notes,

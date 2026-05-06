@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CalendarClock, CheckCircle2, ListChecks, Package } from "lucide-react";
+import { getDemoAssets, getDemoBookingsForUser } from "@/lib/demoData";
 
 export const Route = createFileRoute("/dashboard")({
   component: () => <RequireAuth><Dashboard /></RequireAuth>,
@@ -16,6 +17,7 @@ function Dashboard() {
   const { user } = useAuth();
   const [stats, setStats] = useState({ assets: 0, mine: 0, approved: 0, pending: 0 });
   const [recent, setRecent] = useState<any[]>([]);
+  const [demoMode, setDemoMode] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -24,6 +26,19 @@ function Dashboard() {
         supabase.from("bookings").select("*, assets(name)").eq("user_id", user!.id).order("created_at", { ascending: false }).limit(5),
       ]);
       const all = mine.data ?? [];
+      if ((a.count ?? 0) === 0 && all.length === 0) {
+        const demoAssets = getDemoAssets();
+        const demoBookings = getDemoBookingsForUser(user!.id).slice(0, 5);
+        setStats({
+          assets: demoAssets.length,
+          mine: demoBookings.length,
+          approved: demoBookings.filter((b) => b.status === "approved").length,
+          pending: demoBookings.filter((b) => b.status === "pending").length,
+        });
+        setRecent(demoBookings);
+        setDemoMode(true);
+        return;
+      }
       setStats({
         assets: a.count ?? 0,
         mine: all.length,
@@ -31,6 +46,7 @@ function Dashboard() {
         pending: all.filter((b) => b.status === "pending").length,
       });
       setRecent(all);
+      setDemoMode(false);
     })();
   }, [user]);
 
@@ -47,6 +63,7 @@ function Dashboard() {
       <main className="max-w-7xl mx-auto px-6 py-10">
         <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
         <p className="text-muted-foreground mt-1">Overview of your bookings and activity.</p>
+        {demoMode && <p className="text-xs text-muted-foreground mt-2">Demo mode is active because your current database has no seed data yet.</p>}
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
           {cards.map((c) => (

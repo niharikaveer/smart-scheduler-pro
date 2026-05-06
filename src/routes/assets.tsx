@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { MapPin, Search } from "lucide-react";
+import { getDemoAssets } from "@/lib/demoData";
 
 export const Route = createFileRoute("/assets")({
   component: () => <RequireAuth><AssetsPage /></RequireAuth>,
@@ -16,9 +17,24 @@ export const Route = createFileRoute("/assets")({
 function AssetsPage() {
   const [assets, setAssets] = useState<any[]>([]);
   const [q, setQ] = useState("");
+  const [demoMode, setDemoMode] = useState(false);
 
   useEffect(() => {
-    supabase.from("assets").select("*").eq("is_active", true).neq("status", "retired").order("name").then(({ data }) => setAssets(data ?? []));
+    supabase
+      .from("assets")
+      .select("*")
+      .eq("is_active", true)
+      .neq("status", "retired")
+      .order("name")
+      .then(({ data, error }) => {
+        if (error || !data || data.length === 0) {
+          setAssets(getDemoAssets());
+          setDemoMode(true);
+          return;
+        }
+        setAssets(data);
+        setDemoMode(false);
+      });
   }, []);
 
   const filtered = assets.filter((a) =>
@@ -63,6 +79,11 @@ function AssetsPage() {
             </Card>
           ))}
         </div>
+        {demoMode && (
+          <p className="text-xs text-muted-foreground mt-4">
+            Showing demo assets because no assets are available in your current database.
+          </p>
+        )}
         {filtered.length === 0 && <Card className="p-10 text-center text-muted-foreground mt-6">No assets found.</Card>}
       </main>
     </div>
