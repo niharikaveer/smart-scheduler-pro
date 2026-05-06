@@ -23,8 +23,13 @@ export type Database = {
           id: string
           image_url: string | null
           is_active: boolean
+          last_maintenance_at: string | null
           location: string | null
+          maintenance_after_bookings: number | null
+          maintenance_interval_days: number | null
           name: string
+          status: Database["public"]["Enums"]["asset_status"]
+          usage_count: number
         }
         Insert: {
           auto_approve_role?: Database["public"]["Enums"]["app_role"] | null
@@ -34,8 +39,13 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_active?: boolean
+          last_maintenance_at?: string | null
           location?: string | null
+          maintenance_after_bookings?: number | null
+          maintenance_interval_days?: number | null
           name: string
+          status?: Database["public"]["Enums"]["asset_status"]
+          usage_count?: number
         }
         Update: {
           auto_approve_role?: Database["public"]["Enums"]["app_role"] | null
@@ -45,8 +55,13 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_active?: boolean
+          last_maintenance_at?: string | null
           location?: string | null
+          maintenance_after_bookings?: number | null
+          maintenance_interval_days?: number | null
           name?: string
+          status?: Database["public"]["Enums"]["asset_status"]
+          usage_count?: number
         }
         Relationships: []
       }
@@ -87,6 +102,47 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "bookings_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maintenance_logs: {
+        Row: {
+          asset_id: string
+          created_at: string
+          id: string
+          log_type: string
+          next_due_at: string | null
+          notes: string | null
+          performed_at: string
+          performed_by: string | null
+        }
+        Insert: {
+          asset_id: string
+          created_at?: string
+          id?: string
+          log_type?: string
+          next_due_at?: string | null
+          notes?: string | null
+          performed_at?: string
+          performed_by?: string | null
+        }
+        Update: {
+          asset_id?: string
+          created_at?: string
+          id?: string
+          log_type?: string
+          next_due_at?: string | null
+          notes?: string | null
+          performed_at?: string
+          performed_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_logs_asset_id_fkey"
             columns: ["asset_id"]
             isOneToOne: false
             referencedRelation: "assets"
@@ -190,6 +246,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "staff" | "student"
+      asset_status: "available" | "rented" | "under_maintenance" | "retired"
       booking_status:
         | "pending"
         | "approved"
@@ -324,6 +381,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "staff", "student"],
+      asset_status: ["available", "rented", "under_maintenance", "retired"],
       booking_status: [
         "pending",
         "approved",

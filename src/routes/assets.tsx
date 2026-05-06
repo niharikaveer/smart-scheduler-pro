@@ -18,7 +18,7 @@ function AssetsPage() {
   const [q, setQ] = useState("");
 
   useEffect(() => {
-    supabase.from("assets").select("*").eq("is_active", true).order("name").then(({ data }) => setAssets(data ?? []));
+    supabase.from("assets").select("*").eq("is_active", true).neq("status", "retired").order("name").then(({ data }) => setAssets(data ?? []));
   }, []);
 
   const filtered = assets.filter((a) =>
@@ -53,8 +53,11 @@ function AssetsPage() {
                 </div>
                 {a.location && <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1.5"><MapPin className="h-3.5 w-3.5" />{a.location}</div>}
                 {a.description && <p className="text-sm text-muted-foreground mt-3 line-clamp-2">{a.description}</p>}
-                <Button asChild className="w-full mt-4 bg-gradient-primary">
-                  <Link to="/book/$assetId" params={{ assetId: a.id }}>Book this asset</Link>
+                {a.status && a.status !== "available" && (
+                  <Badge className="mt-3 capitalize bg-warning text-warning-foreground">{String(a.status).replace("_", " ")}</Badge>
+                )}
+                <Button asChild className="w-full mt-4 bg-gradient-primary" disabled={a.status !== "available"}>
+                  <Link to="/book/$assetId" params={{ assetId: a.id }}>{a.status === "available" ? "Book this asset" : "Unavailable"}</Link>
                 </Button>
               </div>
             </Card>
